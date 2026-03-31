@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(DEST=\"C:/Users/SEC/AppData/Roaming/QGIS/QGIS3/profiles/default/python/plugins/cnt_classifier\")",
+      "Bash(SRC=\"C:/Users/SEC/claude/cnt_classifier\")",
+      "Bash(__NEW_LINE_9c17e1e3d23f4e34__ cp:*)",
+      "Bash(cp \"$SRC/classifier.py\" \"$DEST/classifier.py\")",
+      "Bash(cp \"$SRC/processor.py\" \"$DEST/processor.py\")",
+      "Bash(__NEW_LINE_cfe9567ef15ea8c8__ cp:*)",
+      "Bash(cp \"$SRC/worker.py\" \"$DEST/worker.py\")",
+      "Bash(cp \"$SRC/ui/tab_classify.py\" \"$DEST/ui/tab_classify.py\")",
+      "Bash(cp \"$SRC/renderer.py\" \"$DEST/renderer.py\")"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\SEC\\AppData\\Roaming\\QGIS\\QGIS3\\profiles\\default\\python\\plugins\\cnt_classifier"
+    ]
+  }
+}

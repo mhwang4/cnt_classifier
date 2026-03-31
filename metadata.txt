@@ -1,0 +1,16 @@
+[general]
+name=중심지 위계 설정
+qgisMinimumVersion=3.16
+description=중심지 폴리곤에 대해 국토공간거점지도와 생활인프라충족도 격자 데이터를 공간 교차 분석하여 속성을 추출하고 지역중심지/생활중심지/이외로 분류합니다.
+version=1.0.0
+author=
+email=
+about=중심지 위계 설정 플러그인
+repository=
+tracker=
+tags=spatial analysis,classification,center,중심지
+homepage=
+category=Vector
+icon=
+experimental=False
+deprecated=False
