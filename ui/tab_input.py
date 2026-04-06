@@ -156,7 +156,7 @@ class Tab1InputWidget(QWidget):
         form = QFormLayout()
         form.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
         form.setVerticalSpacing(6)
-        form.addRow("중심지 파일 *",                  self.sel_center)
+        form.addRow("중심지 후보(도형) 파일 *",            self.sel_center)
         form.addRow("국토공간거점지도 파일 *",          self.sel_geojeom)
         form.addRow("생활인프라충족도(500m격자) 파일 *", self.sel_infra)
 
