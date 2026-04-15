@@ -48,10 +48,10 @@ class ClassifyCentersAlgorithm(QgsProcessingAlgorithm):
         return "중심지 추출 및 위계 설정"
 
     def group(self) -> str:
-        return "중심지 위계 설정"
+        return ""
 
     def groupId(self) -> str:
-        return "cnt_classifier"
+        return ""
 
     def shortHelpString(self) -> str:
         return (

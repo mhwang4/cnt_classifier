@@ -62,10 +62,10 @@ class ExtractCenterAttributesAlgorithm(QgsProcessingAlgorithm):
         return "중심지 후보 속성 추출"
 
     def group(self) -> str:
-        return "중심지 위계 설정"
+        return ""
 
     def groupId(self) -> str:
-        return "cnt_classifier"
+        return ""
 
     def shortHelpString(self) -> str:
         return (

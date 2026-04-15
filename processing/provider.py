@@ -5,6 +5,7 @@ from qgis.core import QgsApplication, QgsProcessingProvider
 
 from .alg_extract import ExtractCenterAttributesAlgorithm
 from .alg_classify import ClassifyCentersAlgorithm
+from .alg_extract_candidates import ExtractCandidatesAlgorithm
 
 
 class CntClassifierProvider(QgsProcessingProvider):
@@ -27,3 +28,4 @@ class CntClassifierProvider(QgsProcessingProvider):
     def loadAlgorithms(self) -> None:
         self.addAlgorithm(ExtractCenterAttributesAlgorithm())
         self.addAlgorithm(ClassifyCentersAlgorithm())
+        self.addAlgorithm(ExtractCandidatesAlgorithm())
