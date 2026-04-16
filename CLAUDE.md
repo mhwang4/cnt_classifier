@@ -63,6 +63,8 @@ AnalysisConfig (shared mutable dataclass)
 
 **QGIS API 호환**: `_write_geopackage()`는 `QgsVectorFileWriter.create()`(3.20+)를 먼저 시도하고 실패하면 구버전 생성자로 폴백한다.
 
+**레이어 로드**: `_load_layers()`는 `ogr` 프로바이더로 먼저 시도하고, 실패 시 현재 프로젝트에 로드된 레이어 중 `.source()`가 일치하는 것을 반환한다. Processing 알고리즘에서 임시(메모리) 레이어를 입력으로 사용할 때 이 폴백이 작동한다.
+
 메서드 실행 순서:
 
 - `execute()` — Phase 1: 레이어 로드 → 공간 인덱스 → 통계 계산 → GeoPackage 저장
@@ -92,10 +94,11 @@ AnalysisConfig (shared mutable dataclass)
 
 ### processing/ — Processing 알고리즘
 
-Processing 알고리즘은 `processor.py`의 메서드를 직접 호출하는 래퍼다. 별도 로직을 구현하지 않는다.
+Processing 알고리즘은 `processor.py`의 메서드를 직접 호출하는 래퍼다. 별도 로직을 구현하지 않는다. 도구 순서: 후보 추출 → 속성 추출 → 위계 설정.
 
-- `alg_extract.py`: `SpatialProcessor.execute()` 호출
-- `alg_classify.py`: 입력 레이어 source에서 `|layername=분류결과` 제거 후 `execute_dedup()` → `execute_phase2()` → `execute_delete_outside()` 호출
+- `alg_extract_candidates.py`: 국토공간거점지도 격자에서 중심지 후보 폴리곤 추출. 후보그룹1(중심지 유형 기반)·후보그룹2(거주인구밀도 기반) 두 그룹을 처리하며, 읍면동 이름 할당 시 끝글자(읍·면·동)를 제거하고 동일 읍면동 내 중복은 `_2`, `_3` 형식으로 suffix 추가.
+- `alg_extract.py`: `SpatialProcessor.execute()` 호출. `postProcessAlgorithm()`에서 출력 GeoPackage의 `분류결과` 레이어를 지도 뷰에 자동 추가.
+- `alg_classify.py`: 입력 레이어 source에서 `|layername=분류결과` 제거 후 `execute_dedup()` → `execute_phase2()` → `execute_delete_outside()` 호출.
 
 ## 입력/출력 데이터
 
