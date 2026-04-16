@@ -8,6 +8,7 @@ from qgis.core import (
     QgsFeatureRequest,
     QgsField,
     QgsFields,
+    QgsProject,
     QgsSpatialIndex,
     QgsVectorFileWriter,
     QgsVectorLayer,
@@ -286,10 +287,18 @@ class SpatialProcessor:
         def _get(path: str, label: str) -> QgsVectorLayer:
             if not path:
                 raise ValueError(f"{label} 파일 경로가 지정되지 않았습니다.")
+
+            # 파일 기반 레이어 시도
             layer = QgsVectorLayer(path, label, "ogr")
-            if not layer.isValid():
-                raise ValueError(f"{label} 파일을 로드할 수 없습니다:\n{path}")
-            return layer
+            if layer.isValid():
+                return layer
+
+            # 임시(메모리) 레이어: 프로젝트에 로드된 레이어 중 source가 일치하는 것을 반환
+            for lyr in QgsProject.instance().mapLayers().values():
+                if lyr.source() == path and lyr.isValid():
+                    return lyr
+
+            raise ValueError(f"{label} 파일을 로드할 수 없습니다:\n{path}")
 
         return (
             _get(self.config.center_layer_path,  "중심지"),
@@ -304,7 +313,6 @@ class SpatialProcessor:
     def _make_transform(self, src_crs, dst_crs) -> Optional[QgsCoordinateTransform]:
         if src_crs == dst_crs:
             return None
-        from qgis.core import QgsProject
         return QgsCoordinateTransform(src_crs, dst_crs, QgsProject.instance())
 
     def _get_intersecting(self, center_geom, index, features_by_fid, transform):

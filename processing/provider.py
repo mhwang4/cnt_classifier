@@ -26,6 +26,6 @@ class CntClassifierProvider(QgsProcessingProvider):
         return QgsApplication.getThemeIcon("/mActionIdentify.svg")
 
     def loadAlgorithms(self) -> None:
+        self.addAlgorithm(ExtractCandidatesAlgorithm())
         self.addAlgorithm(ExtractCenterAttributesAlgorithm())
         self.addAlgorithm(ClassifyCentersAlgorithm())
-        self.addAlgorithm(ExtractCandidatesAlgorithm())

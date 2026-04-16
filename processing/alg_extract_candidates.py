@@ -91,15 +91,15 @@ class ExtractCandidatesAlgorithm(QgsProcessingAlgorithm):
     def shortHelpString(self) -> str:
         return (
             "국토공간거점지도 격자에서 중심지 후보 폴리곤을 추출합니다.\n\n"
-            "【그룹1】 중심지 유형 필드가 '중심지Ⅰ' 또는 '중심지Ⅱ'인 격자\n"
-            "【그룹2】 나머지 격자 중 거주인구밀도 임계값 이상이며 "
-            "그룹1 결과물의 1km 버퍼 밖에 있는 격자\n\n"
-            "처리 파이프라인 (두 그룹 공통):\n"
+            "【후보그룹1】 중심지 유형 필드가 '중심지Ⅰ' 또는 '중심지Ⅱ'인 격자\n"
+            "【후보그룹2】 나머지 격자 중 거주인구밀도 임계값 이상이며 "
+            "후보그룹1 결과물의 1km 버퍼 밖에 있는 격자\n\n"
+            "처리 파이프라인 (두 후보그룹 공통):\n"
             "  ① 버퍼 (정사각형 끝, 마이터 이음새, 디졸브)\n"
             "  ② 음의 버퍼 (동일 스타일)\n"
             "  ③ 다중파트 → 단일파트 분리\n"
             "  ④ 점 접촉 폴리곤 병합 (옵션)\n\n"
-            "출력: 그룹1·그룹2·통합 레이어 3종\n\n"
+            "출력: 후보그룹1·후보그룹2·통합 레이어 3종\n\n"
             "실행 완료 후 중심지후보이름은 속성 테이블에서 직접 수정하세요."
         )
 
@@ -116,8 +116,8 @@ class ExtractCandidatesAlgorithm(QgsProcessingAlgorithm):
             self.GEOJEOM_LAYER, "국토공간거점지도 레이어",
         ))
 
-        # ── 그룹1 설정 ────────────────────────────────────────────────
-        if _sep: self.addParameter(_sep("SEP_GROUP1", "그룹1 설정 (중심지 유형 기반)"))
+        # ── 후보그룹1 설정 ────────────────────────────────────────────────
+        if _sep: self.addParameter(_sep("SEP_GROUP1", "후보그룹1 설정 — 중심지 유형(중심지Ⅰ·중심지Ⅱ) 기반"))
         self.addParameter(QgsProcessingParameterField(
             self.TYPE_FIELD, "중심지 유형 필드 (값: '중심지Ⅰ', '중심지Ⅱ')",
             defaultValue="type",
@@ -125,8 +125,8 @@ class ExtractCandidatesAlgorithm(QgsProcessingAlgorithm):
             type=QgsProcessingParameterField.Any,
         ))
 
-        # ── 그룹2 설정 ────────────────────────────────────────────────
-        if _sep: self.addParameter(_sep("SEP_GROUP2", "그룹2 설정 (거주인구밀도 기반)"))
+        # ── 후보그룹2 설정 ────────────────────────────────────────────────
+        if _sep: self.addParameter(_sep("SEP_GROUP2", "후보그룹2 설정 — 거주인구밀도 기반 (후보그룹1 1km 밖 격자)"))
         self.addParameter(QgsProcessingParameterField(
             self.POP_FIELD, "거주인구밀도 필드",
             defaultValue="pop_r",
@@ -140,8 +140,8 @@ class ExtractCandidatesAlgorithm(QgsProcessingAlgorithm):
             minValue=0.0,
         ))
 
-        # ── 버퍼 처리 옵션 (그룹1·그룹2 공통) ───────────────────────
-        if _sep: self.addParameter(_sep("SEP_BUFFER", "버퍼 처리 옵션 (그룹1·그룹2 공통)"))
+        # ── 버퍼 처리 옵션 (후보그룹1·후보그룹2 공통) ───────────────────────
+        if _sep: self.addParameter(_sep("SEP_BUFFER", "버퍼 처리 옵션 (후보그룹1·후보그룹2 공통)"))
         self.addParameter(QgsProcessingParameterNumber(
             self.BUFFER_DISTANCE, "버퍼 거리 (m)",
             type=QgsProcessingParameterNumber.Double,
@@ -176,15 +176,15 @@ class ExtractCandidatesAlgorithm(QgsProcessingAlgorithm):
         # ── 출력 ──────────────────────────────────────────────────────
         if _sep: self.addParameter(_sep("SEP_OUTPUT", "출력"))
         self.addParameter(QgsProcessingParameterFeatureSink(
-            self.OUTPUT_GROUP1, "그룹1 출력 (중심지Ⅰ·중심지Ⅱ 기반)",
+            self.OUTPUT_GROUP1, "후보그룹1 출력 (중심지Ⅰ·중심지Ⅱ 기반)",
             type=QgsProcessing.TypeVectorPolygon,
         ))
         self.addParameter(QgsProcessingParameterFeatureSink(
-            self.OUTPUT_GROUP2, "그룹2 출력 (거주인구밀도 기반)",
+            self.OUTPUT_GROUP2, "후보그룹2 출력 (거주인구밀도 기반)",
             type=QgsProcessing.TypeVectorPolygon,
         ))
         self.addParameter(QgsProcessingParameterFeatureSink(
-            self.OUTPUT, "통합 출력 (그룹1+그룹2)",
+            self.OUTPUT, "통합 출력 (후보그룹1+후보그룹2)",
             type=QgsProcessing.TypeVectorPolygon,
         ))
 
@@ -248,33 +248,33 @@ class ExtractCandidatesAlgorithm(QgsProcessingAlgorithm):
         if feedback.isCanceled():
             return {}
         feedback.pushInfo(
-            f"그룹1 소스 격자: {len(g1_geoms)}개 | 그룹2 인구 조건 통과: {len(g2_candidates)}개"
+            f"후보그룹1 소스 격자: {len(g1_geoms)}개 | 후보그룹2 인구 조건 통과: {len(g2_candidates)}개"
         )
 
-        # ── 그룹1 파이프라인 (진행률 17~42%) ─────────────────────────
-        feedback.pushInfo("그룹1 버퍼 처리 중...")
+        # ── 후보그룹1 파이프라인 (진행률 17~42%) ─────────────────────────
+        feedback.pushInfo("후보그룹1 버퍼 처리 중...")
         feedback.setProgress(17)
         g1_polys = self._apply_pipeline(g1_geoms, buffer_dist, merge_touching, feedback)
         if feedback.isCanceled():
             return {}
 
-        # ── 그룹2: 그룹1 결과물 1km 버퍼 밖 필터링 (진행률 42~50%) ──
-        feedback.pushInfo("그룹2 거리 필터 적용 중...")
+        # ── 후보그룹2: 후보그룹1 결과물 1km 버퍼 밖 필터링 (진행률 42~50%) ──
+        feedback.pushInfo("후보그룹2 거리 필터 적용 중...")
         feedback.setProgress(42)
         g2_geoms = self._filter_g2_outside_buffer(g2_candidates, g1_polys, feedback)
         if feedback.isCanceled():
             return {}
-        feedback.pushInfo(f"그룹2 소스 격자: {len(g2_geoms)}개")
+        feedback.pushInfo(f"후보그룹2 소스 격자: {len(g2_geoms)}개")
 
-        # ── 그룹2 파이프라인 (진행률 50~67%) ─────────────────────────
-        feedback.pushInfo("그룹2 버퍼 처리 중...")
+        # ── 후보그룹2 파이프라인 (진행률 50~67%) ─────────────────────────
+        feedback.pushInfo("후보그룹2 버퍼 처리 중...")
         feedback.setProgress(50)
         g2_polys = self._apply_pipeline(g2_geoms, buffer_dist, merge_touching, feedback)
         if feedback.isCanceled():
             return {}
 
         feedback.pushInfo(
-            f"그룹1: {len(g1_polys)}개 폴리곤 | 그룹2: {len(g2_polys)}개 폴리곤"
+            f"후보그룹1: {len(g1_polys)}개 폴리곤 | 후보그룹2: {len(g2_polys)}개 폴리곤"
         )
 
         # ── 속성 할당 (진행률 67~90%) ─────────────────────────────────
@@ -297,7 +297,7 @@ class ExtractCandidatesAlgorithm(QgsProcessingAlgorithm):
         g1_count = sum(1 for r in records if r["group"] == "중심지후보그룹1")
         g2_count = sum(1 for r in records if r["group"] == "중심지후보그룹2")
         feedback.setProgress(100)
-        feedback.pushInfo(f"그룹1: {g1_count}개 | 그룹2: {g2_count}개 | 전체: {len(records)}개")
+        feedback.pushInfo(f"후보그룹1: {g1_count}개 | 후보그룹2: {g2_count}개 | 전체: {len(records)}개")
         feedback.pushInfo(
             "완료. 중심지후보이름은 레이어 속성 테이블에서 직접 수정하세요."
         )
@@ -355,9 +355,9 @@ class ExtractCandidatesAlgorithm(QgsProcessingAlgorithm):
         feedback: QgsProcessingFeedback,
     ) -> Tuple[List[QgsGeometry], List[QgsGeometry]]:
         """
-        그룹1: type_field IN _CENTER_TYPES
-        그룹2 후보: NOT IN _CENTER_TYPES AND pop >= threshold  (1km 거리 필터는 미적용)
-        → 1km 거리 필터는 그룹1 파이프라인 완료 후 _filter_g2_outside_buffer에서 적용
+        후보그룹1: type_field IN _CENTER_TYPES
+        후보그룹2 후보: NOT IN _CENTER_TYPES AND pop >= threshold  (1km 거리 필터는 미적용)
+        → 1km 거리 필터는 후보그룹1 파이프라인 완료 후 _filter_g2_outside_buffer에서 적용
         """
         total = layer.featureCount()
         feedback.pushInfo(f"[필터] 레이어 전체 피처 수: {total}")
@@ -389,8 +389,8 @@ class ExtractCandidatesAlgorithm(QgsProcessingAlgorithm):
             if i % 500 == 0:
                 feedback.setProgress(int(17 * i / max(total, 1)))
 
-        feedback.pushInfo(f"[필터] 그룹1 매칭 격자: {len(g1_geoms)}개")
-        feedback.pushInfo(f"[필터] 그룹2 인구 조건 통과: {len(g2_candidates)}개 (1km 버퍼 필터 전)")
+        feedback.pushInfo(f"[필터] 후보그룹1 매칭 격자: {len(g1_geoms)}개")
+        feedback.pushInfo(f"[필터] 후보그룹2 인구 조건 통과: {len(g2_candidates)}개 (1km 버퍼 필터 전)")
 
         return g1_geoms, g2_candidates
 
@@ -400,20 +400,20 @@ class ExtractCandidatesAlgorithm(QgsProcessingAlgorithm):
         g1_polys: List[QgsGeometry],
         feedback: QgsProcessingFeedback,
     ) -> List[QgsGeometry]:
-        """그룹1 파이프라인 결과물에 1km 버퍼(디졸브)를 적용하고, 그 밖에 있는 g2 후보만 반환."""
+        """후보그룹1 파이프라인 결과물에 1km 버퍼(디졸브)를 적용하고, 그 밖에 있는 g2 후보만 반환."""
         if not g1_polys:
-            feedback.pushInfo("[그룹2 거리 필터] 그룹1 없음 → 1km 필터 미적용, 전체 포함")
+            feedback.pushInfo("[후보그룹2 거리 필터] 후보그룹1 없음 → 1km 필터 미적용, 전체 포함")
             return list(g2_candidates)
 
-        feedback.pushInfo(f"[그룹2 거리 필터] 그룹1 폴리곤 {len(g1_polys)}개로 1km 버퍼 생성 중...")
+        feedback.pushInfo(f"[후보그룹2 거리 필터] 후보그룹1 폴리곤 {len(g1_polys)}개로 1km 버퍼 생성 중...")
 
-        # 그룹1 각 폴리곤 1km 버퍼 → 디졸브
+        # 후보그룹1 각 폴리곤 1km 버퍼 → 디졸브
         buffered = [self._do_buffer(poly, 1000.0) for poly in g1_polys]
         buffered = [b for b in buffered if b is not None and not b.isNull()]
         g1_buffer_union = QgsGeometry.unaryUnion(buffered)
 
         if g1_buffer_union is None or g1_buffer_union.isNull():
-            feedback.pushInfo("[그룹2 거리 필터] 버퍼 생성 실패 → 전체 포함")
+            feedback.pushInfo("[후보그룹2 거리 필터] 버퍼 생성 실패 → 전체 포함")
             return list(g2_candidates)
 
         # 버퍼 유니온을 싱글파트로 분리해 공간 인덱스 구축
@@ -439,7 +439,7 @@ class ExtractCandidatesAlgorithm(QgsProcessingAlgorithm):
                 g2_geoms.append(geom)
 
         feedback.pushInfo(
-            f"[그룹2 거리 필터] 인구 조건: {len(g2_candidates)}개 → 1km 버퍼 밖: {len(g2_geoms)}개"
+            f"[후보그룹2 거리 필터] 인구 조건: {len(g2_candidates)}개 → 1km 버퍼 밖: {len(g2_geoms)}개"
         )
         return g2_geoms
 
@@ -714,7 +714,10 @@ class ExtractCandidatesAlgorithm(QgsProcessingAlgorithm):
         emd_tr: Optional[QgsCoordinateTransform],
         seq: int,
     ) -> str:
-        """교차 면적 최대 읍면동 이름 반환. EMD 없으면 '중심지후보_N'."""
+        """교차 면적 최대 읍면동 이름 반환. EMD 없으면 '중심지후보_N'.
+
+        읍면동 이름 끝이 '읍'·'면'·'동'이면 해당 글자를 제거한다.
+        """
         if emd_index is None or not emd_name_field:
             return f"중심지후보_{seq}"
 
@@ -733,7 +736,13 @@ class ExtractCandidatesAlgorithm(QgsProcessingAlgorithm):
             if inter and not inter.isNull() and inter.area() > best_area:
                 best_area = inter.area()
                 val = emd_feat[emd_name_field]
-                best_name = str(val) if val is not None else f"중심지후보_{seq}"
+                if val is not None:
+                    name_str = str(val)
+                    if name_str and name_str[-1] in ("읍", "면", "동"):
+                        name_str = name_str[:-1]
+                    best_name = name_str
+                else:
+                    best_name = f"중심지후보_{seq}"
 
         return best_name
 

@@ -5,6 +5,8 @@ from qgis.core import (
     QgsProcessingParameterField,
     QgsProcessingParameterFileDestination,
     QgsProcessingParameterVectorLayer,
+    QgsProject,
+    QgsVectorLayer,
 )
 
 from ..models import AnalysisConfig, GeojeomConfig, InfraConfig, InfraStatType, StatType
@@ -231,4 +233,19 @@ class ExtractCenterAttributesAlgorithm(QgsProcessingAlgorithm):
             return {}
 
         feedback.pushInfo(f"저장 완료: {output_path}")
+        self._output_path = output_path
         return {self.OUTPUT: output_path}
+
+    def postProcessAlgorithm(self, context, feedback):
+        output_path = getattr(self, "_output_path", None)
+        if not output_path:
+            return {}
+
+        layer_uri = f"{output_path}|layername=분류결과"
+        layer = QgsVectorLayer(layer_uri, "분류결과", "ogr")
+        if layer.isValid():
+            QgsProject.instance().addMapLayer(layer)
+        else:
+            feedback.pushWarning("출력 레이어를 지도 뷰에 추가하지 못했습니다.")
+
+        return {}
