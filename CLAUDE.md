@@ -28,7 +28,11 @@ $DEST = "C:\Users\SEC\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins
     "processing\provider.py",
     "processing\alg_extract_candidates.py",
     "processing\alg_extract.py",
-    "processing\alg_classify.py"
+    "processing\alg_classify.py",
+    "processing\alg_weighted_centroid.py",
+    "processing\alg_od_matrix_road.py",
+    "processing\alg_mobility_matrix.py",
+    "processing\alg_attractiveness_upper_zone.py"
 ) | ForEach-Object { Copy-Item "$SRC\$_" "$DEST\$_" -Force }
 ```
 
@@ -47,6 +51,10 @@ $DEST = "C:\Users\SEC\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins
 | `alg_extract_candidates.py` | 중심지 후보 추출 | 격자에서 후보 폴리곤 생성 (독립 로직) |
 | `alg_extract.py` | 중심지 후보 속성 추출 | `SpatialProcessor.execute()` 래핑, 완료 후 결과 레이어("중심지 후보 속성 추가") 지도 뷰 자동 추가 |
 | `alg_classify.py` | 중심지 및 위계 설정 | QGIS 표현식 기반 cascade 분류, 입력 레이어 무수정, 새 레이어 출력 |
+| `alg_weighted_centroid.py` | 인구가중 중심지 대표점 추출 | 국토공간거점지도 격자 인구 가중 centroid 계산, 포인트 레이어 출력 |
+| `alg_od_matrix_road.py` | 중심지-중심지 거리(도로) 행렬 산출 | QNEAT3 `OdMatrixFromLayersAsLines` 래핑, 기점/종점 유형 다중 선택 |
+| `alg_mobility_matrix.py` | 하위생활권-상위중심지 이동량 행렬 산출 | 1km격자 모바일 통행 행렬 CSV → (생활권, 상위중심지) 쌍별 유입·유출 집계 |
+| `alg_attractiveness_upper_zone.py` | 매력도 기반 상위생활권 도출 | 이동량 집계+매력도 점수 계산+격자 할당+권역 Dissolve 통합 실행 |
 
 ## `alg_classify.py` — 중심지 및 위계 설정
 
@@ -103,6 +111,112 @@ ctx.setFields(input_layer.fields())
 **읍면동별 중복 제거 (`_dedup_by_emd`)**: EMD 귀속도 교차 면적 최대 방식으로 판정(이름 할당과 동일 기준). 버킷 키는 `emd_fid` 단독(그룹 구분 없음) — 그룹1·2 통합 기준으로 읍면동당 `res_pop_sum` 최대 폴리곤 1개 보존.
 
 출력: 후보그룹1 레이어, 후보그룹2 레이어, 통합 레이어 3종. 통합 레이어 필드: `중심지후보id`, `중심지후보이름`, `구분`(값: `중심지후보그룹1` 또는 `중심지후보그룹2`).
+
+## `alg_weighted_centroid.py` — 인구가중 중심지 대표점 추출
+
+중심지 폴리곤 레이어와 국토공간거점지도(격자) 레이어를 입력받아 인구 가중 centroid 포인트를 산출한다.
+
+**파라미터:**
+
+- `INPUT` (Polygon) — 중심지 폴리곤 레이어
+- `GEOJEOM_LAYER` (Polygon) — 국토공간거점지도 격자 레이어
+- `POP_FIELD` (Numeric Field from GEOJEOM_LAYER) — 인구 필드
+- `OUTPUT` (FeatureSink, Point) — 대표점 레이어
+
+**계산 방식:** 각 중심지 폴리곤에 속하는 격자(centroid-in-polygon) 목록에서
+`weighted_x += pop * cx`, `total_weight += pop` 누적 후 `wx = weighted_x / total_weight`.
+`total_weight == 0`이면 폴리곤 centroid로 대체.
+
+**CRS 처리:** GEOJEOM_LAYER CRS → INPUT CRS 변환(`to_geojeom`), 결과 포인트 역변환(`to_center`).
+
+---
+
+## `alg_od_matrix_road.py` — 중심지-중심지 거리(도로) 행렬 산출
+
+QNEAT3 플러그인의 `OdMatrixFromLayersAsLines` 알고리즘을 래핑한다.
+
+**파라미터:**
+
+- `INPUT` (Point) — 중심지 대표점 레이어
+- `NETWORK_LAYER` (Line) — 도로망 레이어 (KTDB GIS, UTM-K EPSG:5179 권장)
+- `TYPE_FIELD` (String Field) — 중심지 유형 필드
+- `FROM_TYPE` / `TO_TYPE` (Enum, allowMultiple) — 기점/종점 유형 (`_CENTER_TYPES` 목록)
+- `FROM_ID_FIELD` / `TO_ID_FIELD` (Field) — 기점/종점 ID 필드
+
+**주의:** 네트워크 레이어에 `ONEWAY` 필드가 없으면 실행 전 오류 발생.
+
+**내부 동작:** `_make_filtered_layer()`로 유형별 임시 메모리 레이어 생성 후 QNEAT3 호출
+(`STRATEGY=0`, `ENTRY_COST_CALCULATION_METHOD=1`, `DEFAULT_DIRECTION=2`).
+
+**출력:** `QgsProcessingOutputVectorLayer` — `postProcessAlgorithm`에서 레이어명 "중심지-중심지 OD 행렬"로 지도 뷰 추가.
+
+---
+
+## `alg_mobility_matrix.py` — 하위생활권-상위중심지 이동량 행렬 산출
+
+1km격자 모바일 통행 행렬 CSV를 스트리밍으로 읽어 (하위생활권ID, 상위중심지ID) 쌍별 유입·유출 통행량을 집계한다. 단독 실행용 도구로 유지되며, `alg_attractiveness_upper_zone.py`에도 동일 로직이 내장되어 있다.
+
+**파라미터:**
+
+- `SUB_LAYER` (Polygon) — 하위생활권(격자) 레이어
+- `SUB_ZONE_ID_FIELD` — 생활권(중심지) ID 필드
+- `SUB_GRID_ID_FIELD` — 격자 ID 필드
+- `UPPER_LAYER` (Polygon) — 상위중심지 폴리곤 레이어
+- `UPPER_TYPE_FIELD` / `UPPER_TYPES` / `UPPER_ID_FIELD` — 유형 필터 및 ID
+- `CSV_LAYER` (any vector) — 통행 행렬 레이어 (CSV를 구분자 텍스트 레이어로 추가)
+- `CSV_FROM_FIELD` / `CSV_TO_FIELD` / `CSV_TRIP_FIELD` — 컬럼 필드 선택
+- `OUTPUT` (FileDestination CSV)
+
+**핵심 구현:**
+
+- `_extract_csv_path()`: `file:///` URI에서 실제 경로 추출
+- `_open_csv()`: UTF-8-SIG → UTF-8 → CP949 인코딩 자동 감지
+- 단일 패스 양방향 집계: 방향1(하위→상위) + 방향2(상위→하위) 동시 처리
+- `from_id == to_id` 자기 이동 제외, 50만 행마다 진행 상황 출력
+
+**출력 CSV 헤더:** `하위생활권ID, 상위중심지ID, 유입통행량, 유출통행량`
+
+**`postProcessAlgorithm`:** 출력 CSV를 ogr 레이어로 지도 뷰에 추가.
+
+---
+
+## `alg_attractiveness_upper_zone.py` — 매력도 기반 상위생활권 도출
+
+이동량 행렬 산출 + 매력도 점수 계산 + 격자 할당 + 권역 Dissolve를 단일 도구로 통합.
+파라미터 31개(두 도구 합산) → 20개로 단순화.
+
+**파라미터 4그룹:**
+
+| 그룹 | 주요 파라미터 |
+| --- | --- |
+| 상위중심지 폴리곤 | `UPPER_LAYER`, `UPPER_TYPE_FIELD`, `UPPER_TYPES`(Enum 다중선택, 기본값: 광역중심지), `UPPER_ID_FIELD` |
+| 하위생활권(격자) | `SUB_LAYER`, `SUB_ZONE_ID_FIELD`, `SUB_GRID_ID_FIELD` |
+| 모바일 통행 행렬 | `CSV_LAYER`(any vector), `CSV_FROM_FIELD`, `CSV_TO_FIELD`, `CSV_TRIP_FIELD` |
+| 거리 행렬 | `DIST_LAYER`, `DIST_FROM_FIELD`, `DIST_TO_FIELD`, `DIST_VALUE_FIELD`, `DIST_UNIT`(미터/km) |
+
+**출력:**
+
+- `OUTPUT_DISSOLVE` — 상위생활권 권역 폴리곤 레이어 (상위중심지ID, 격자수 필드)
+- `OUTPUT_GRID` — 상위중심지ID 할당 격자 레이어
+- `OUTPUT_SCORE_CSV` — 매력도 점수 CSV
+- `OUTPUT_MOBILITY_CSV` — 이동량 행렬 CSV (**선택**, `optional=True`)
+
+**핵심 로직 (단계별):**
+
+1. 격자 공간 인덱스 구축 → `grid_to_zone`
+2. centroid-in-polygon → `upper_center_grids`, `grid_to_upper`, `upper_center_ids`
+3. CSV 단일 패스 양방향 집계 → `mobility {(zone_id, upper_id) → [inflow, outflow]}`
+4. (선택) 이동량 CSV 저장
+5. 거리 행렬 로드 (미터이면 /1000 변환)
+6. 매력도 산출: `score = (inflow + outflow) / dist_km²`  
+   — `zone_id ∈ upper_center_ids`이면 자기 ID 직접 할당 (매력도 계산 생략)
+7. 매력도 점수 CSV 저장
+8. 격자 출력 (`상위중심지ID` 필드 추가/갱신)
+9. `QgsGeometry.unaryUnion` per upper_id → Dissolve 레이어
+
+**CSV 처리 유틸 (`_extract_csv_path`, `_open_csv`):** `alg_mobility_matrix.py`와 동일 구현.
+
+---
 
 ## `alg_extract.py` — 중심지 후보 속성 추출
 

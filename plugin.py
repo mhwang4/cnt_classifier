@@ -22,6 +22,10 @@ class CenterClassifierPlugin:
             ("krihs_cnt_classifier:extract_candidates",        "중심지 후보 추출"),
             ("krihs_cnt_classifier:extract_center_attributes", "중심지 후보 속성 추출"),
             ("krihs_cnt_classifier:classify_centers",          "중심지 및 위계 설정"),
+            ("krihs_cnt_classifier:pop_weighted_centroid",     "인구가중 중심지 대표점 추출"),
+            ("krihs_cnt_classifier:od_matrix_road_distance",   "중심지-중심지 거리(도로) 행렬 산출"),
+            ("krihs_cnt_classifier:mobility_matrix",            "하위생활권-상위중심지 이동량 행렬 산출"),
+            ("krihs_cnt_classifier:attractiveness_upper_zone",  "매력도 기반 상위생활권 도출"),
         ]
         self.alg_actions = []
         for alg_id, label in alg_defs:

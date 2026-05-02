@@ -6,6 +6,10 @@ from qgis.core import QgsApplication, QgsProcessingProvider
 from .alg_extract import ExtractCenterAttributesAlgorithm
 from .alg_classify import ClassifyCentersAlgorithm
 from .alg_extract_candidates import ExtractCandidatesAlgorithm
+from .alg_weighted_centroid import PopWeightedCentroidAlgorithm
+from .alg_od_matrix_road import OdMatrixRoadAlgorithm
+from .alg_mobility_matrix import MobilityMatrixAlgorithm
+from .alg_attractiveness_upper_zone import AttractivenessUpperZoneAlgorithm
 
 
 class CntClassifierProvider(QgsProcessingProvider):
@@ -29,3 +33,7 @@ class CntClassifierProvider(QgsProcessingProvider):
         self.addAlgorithm(ExtractCandidatesAlgorithm())
         self.addAlgorithm(ExtractCenterAttributesAlgorithm())
         self.addAlgorithm(ClassifyCentersAlgorithm())
+        self.addAlgorithm(PopWeightedCentroidAlgorithm())
+        self.addAlgorithm(OdMatrixRoadAlgorithm())
+        self.addAlgorithm(MobilityMatrixAlgorithm())
+        self.addAlgorithm(AttractivenessUpperZoneAlgorithm())
