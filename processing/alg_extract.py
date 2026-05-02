@@ -73,7 +73,7 @@ class ExtractCenterAttributesAlgorithm(QgsProcessingAlgorithm):
         return (
             "중심지 후보 폴리곤에 대해 국토공간거점지도와 생활인프라충족도 격자 데이터를 "
             "공간 교차 분석하여 인구·중심성·인프라 통계를 추출합니다.\n\n"
-            "출력: 통계 필드가 추가된 GeoPackage (레이어명: 분류결과)\n\n"
+            "출력: 통계 필드가 추가된 GeoPackage (GeoPackage 내부 레이어명: 분류결과)\n\n"
             "이 출력을 '중심지 추출 및 위계 설정' 알고리즘의 입력으로 사용합니다."
         )
 
@@ -165,7 +165,7 @@ class ExtractCenterAttributesAlgorithm(QgsProcessingAlgorithm):
             self.INFRA_STATS, "인프라 통계",
             options=_INFRA_STAT_OPTIONS,
             allowMultiple=True,
-            defaultValue=list(range(len(_INFRA_STAT_OPTIONS))),
+            defaultValue=[0],
         ))
 
         # 출력
@@ -242,7 +242,7 @@ class ExtractCenterAttributesAlgorithm(QgsProcessingAlgorithm):
             return {}
 
         layer_uri = f"{output_path}|layername=분류결과"
-        layer = QgsVectorLayer(layer_uri, "분류결과", "ogr")
+        layer = QgsVectorLayer(layer_uri, "중심지 후보 속성 추가", "ogr")
         if layer.isValid():
             QgsProject.instance().addMapLayer(layer)
         else:
